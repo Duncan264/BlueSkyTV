@@ -137,8 +137,6 @@ async def handler(websocket):
         except KeyError:
             pass
     return file
-    player.volume = 60
-    player.play(file)
         
 async def get_id():
     url = 'wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post'
