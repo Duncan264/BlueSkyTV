@@ -32,26 +32,26 @@ class MyLogger:
 class DownloadHandler:
     def __init__(self, forward_length = 5, backward_length = 2):
         self.background_tasks = set()
-        self.forward_length = forward_length
+        self.forward_length = forward_length #How many videos should be in que ahead
         self.backward_length = backward_length
-        self.listening = False
+        self.listening = False #Checking blue sky for new video to be posted
     
     async def update(self, index, length):
-        print ((length - index) < self.forward_length)
-        if (length - index) < self.forward_length:
-            if not self.listening:
+        #print ((length - index) < self.forward_length)
+        if (length - index) < self.forward_length: #if queue not full of downloaded/downloading videos create a new one
+            if not self.listening: #Make sure no other process is already waiting on a link to be posted
                 if (len(self.background_tasks) < self.forward_length):
-                    task = asyncio.create_task(self.download())
+                    task = asyncio.create_task(self.download()) #create a new downloader and add it to a background task
                     self.background_tasks.add(task)
                     task.add_done_callback(self.background_tasks.discard)
 
                 
-    async def download(self):
+    async def download(self): #Gets a link form blue sky, wait for it to download, and then add it to the player
         try:
-            self.listening = True
+            self.listening = True 
             link = await get_id()
             self.listening = False
-            loop = asyncio.get_running_loop()
+            loop = asyncio.get_running_loop() 
             print(await loop.run_in_executor(None, download_video, link))
             player.playlist_append("videos\\"+link+".webm")
             return link
@@ -74,7 +74,7 @@ ydl_opts = {
     'merge_output_format':'webm'
 }
 
-def video_id(value):
+def video_id(value): #Get id from link
     """
     Examples:
     - http://youtu.be/SA2iWivDJiE
@@ -96,7 +96,7 @@ def video_id(value):
     # fail?
     return None
 
-async def handler(websocket):
+async def handler(websocket): #Watch bluesky for youtube link
     done = False
     file = None
     while not done:
