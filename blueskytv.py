@@ -5,10 +5,11 @@ import re
 import mpv
 import yt_dlp
 import urllib.parse as urlparse
+import random
 
 
 player = mpv.MPV(ytdl=True, input_default_bindings=True, input_vo_keyboard=True, osc=True)
-
+id_epoch = {}
 
 
 class MyLogger:
@@ -30,7 +31,7 @@ class MyLogger:
         print(msg)
     
 class DownloadHandler:
-    def __init__(self, forward_length = 5, backward_length = 2):
+    def __init__(self, forward_length = 10, backward_length = 2):
         self.background_tasks = set()
         self.forward_length = forward_length #How many videos should be in que ahead
         self.backward_length = backward_length
@@ -48,12 +49,13 @@ class DownloadHandler:
                 
     async def download(self): #Gets a link form blue sky, wait for it to download, and then add it to the player
         try:
+            id = random.randrange(999999)
             self.listening = True 
             link = await get_id()
             self.listening = False
-            loop = asyncio.get_running_loop() 
+            loop = asyncio.get_running_loop()
             print(await loop.run_in_executor(None, download_video, link))
-            player.playlist_append("videos\\"+link+".webm")
+            player.playlist_append("videos\\"+link+"-"+id_epoch[link]+".webm")
             return link
         except:
             self.listening = False
@@ -64,15 +66,36 @@ class DownloadHandler:
 # ℹ️ See "progress_hooks" in help(yt_dlp.YoutubeDL)
 def my_hook(d):
     if d['status'] == 'finished':
+        id_epoch[d['info_dict']['id']] = str(d['info_dict']['epoch'])
         print('Done downloading, now post-processing ...')
 
+def clip(info_dict, ydl):
+    dur = info_dict['duration']
+    print (dur)
+    start = random.randrange(0, dur-15)
+    end = start+15
+    print(start)
+    print(end)
+    return [{'start_time':start, 'end_time':end}]
+
+#ydl_opts = {
+#    'logger': MyLogger(),
+#    'progress_hooks': [my_hook],
+#    'outtmpl': 'videos/%(id)s',
+#    'merge_output_format':'webm',
+#    'cookiesfrombrowser':('firefox', None, None, None)
+#}
 
 ydl_opts = {
     'logger': MyLogger(),
     'progress_hooks': [my_hook],
-    'outtmpl': 'videos\%(id)s',
-    'merge_output_format':'webm'
+    'outtmpl': 'videos\%(id)s-%(epoch)s',
+    'merge_output_format':'webm',
+    'download_ranges': clip,
+    'cookiesfrombrowser':('firefox', None, None, None),
+    'force_keyframes_at_cuts':False
 }
+
 
 def video_id(value): #Get id from link
     """
@@ -139,16 +162,19 @@ async def handler(websocket): #Watch bluesky for youtube link
     return file
         
 async def get_id():
+    print('test')
     url = 'wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post'
     async with websockets.connect(url) as ws:
+        print ('start')
         link = await handler(ws)
+        print ('finish')
         return video_id(link)
         await asyncio.Future()  # run forever
 
 def download_video(link):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([link])
-            
+        
 
 async def player_manager():
     h = DownloadHandler(forward_length = 5, backward_length = 2)
@@ -159,7 +185,7 @@ async def player_manager():
 
 async def main():
     player.volume = 60
-    player.play("https://www.youtube.com/watch?v=xNjyG8S4_kI")
+    player.play("./start.webm")
     print(player.playlist)
     await player_manager()
 
